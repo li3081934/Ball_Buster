@@ -5,7 +5,6 @@ class Scene{
         this.movingLeft=false;
         this.movingRight=false;
         this.keyBinding();
-
     }
     keyBinding(){
         window.addEventListener('keydown',(e)=>{
@@ -36,7 +35,10 @@ class Scene{
                 squ.moveRight()
             }
             squ.draw();
-            ball.fly();
+            if(!ball.fly(squ.position,squ.size)){
+                clearInterval(this.timer)
+            }
+
             ball.draw()
         },1000/60)
     }
@@ -85,12 +87,15 @@ class Draw{
 class DrawBall extends  Draw{
     constructor(context,position,size){
         super(context,position,size);
-        this.stap=5;
+        this.stap=3;
         this.way={x:true,y:false}
     }
-    fly(){
+    fly(pPosition,pSize){
         this.clear();
-        this.decide();
+        if(!this.decide(pPosition,pSize)){
+            alert('game over')
+            return false
+        };
         if(this.way.x){
             this.position.x+=this.stap
         }else{
@@ -101,13 +106,18 @@ class DrawBall extends  Draw{
         }else{
             this.position.y-=this.stap
         }
+        return true
 
     }
-    decide(){
+    decide(pPosition,pSize){
         let borderX=this.context.canvas.clientWidth,borderY=this.context.canvas.clientHeight;
         let w=this.size.w,h=this.size.h;
         let x=this.position.x,y=this.position.y;
         if(y+h>=borderY){
+            return false
+        }
+        debugger
+        if(y+h>=pPosition.y&&x>=pPosition.x&&x<=pPosition.x+pSize.w){
             this.way.y=false
         }
         if(y<=0){
@@ -119,5 +129,6 @@ class DrawBall extends  Draw{
         if(x<=0){
             this.way.x=true
         }
+        return true
     }
 }

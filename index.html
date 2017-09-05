@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        canvas{
+            border: 1px solid #666666;
+        }
+    </style>
+
+</head>
+<body>
+    <canvas  width="400" height="300" id="game">
+
+    </canvas>
+    <button id="start">START</button>
+<script src='js/app.js'></script>
+<script>
+    var g=new Scene(document.querySelector('#game'))
+    document.querySelector('#start').onclick=function () {
+        g.start()
+    }
+</script>
+</body>
+</html>

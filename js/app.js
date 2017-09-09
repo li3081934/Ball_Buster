@@ -1,10 +1,36 @@
+bloclArr=[
+    [1,1,1,1,1],
+    [1,1,1,1,1],
+    [1,1,1,1,1],
+
+]
 class Scene{
     constructor(con){
         this.scene=con;
         this.ctx = this.scene.getContext('2d');
         this.movingLeft=false;
         this.movingRight=false;
+        this.ballFlying=true;
         this.keyBinding();
+        this.gameing=false;
+        this.blockArr=[...bloclArr]
+        this.getBlocks()
+
+    }
+    getBlocks(){
+        let img=new Image();
+        img.src='./images/block.png';
+
+        img.onload=()=>{
+            this.blockArr.forEach((i,index)=>{
+                i.forEach((k,kndex)=>{
+                    this.blockArr[index][kndex]=new DrawTarget(this.ctx,{x:kndex*img.width+160,y:index*img.height+10},img,k);
+
+
+                })
+            })
+        }
+
     }
     keyBinding(){
         window.addEventListener('keydown',(e)=>{
@@ -13,6 +39,9 @@ class Scene{
             }
             if(e.key==='d'){
                 this.movingRight=true
+            }
+            if(e.key==='f'){
+                this.ballFlying=!this.ballFlying
             }
         })
         window.addEventListener('keyup',(e)=>{
@@ -24,39 +53,62 @@ class Scene{
             }
         })
     }
+    clearScene(){
+        this.ctx.clearRect(0,0,this.scene.width,this.scene.height)
+    }
+
+    gameover(){
+        clearInterval(this.timer)
+        this.gameing=false
+    }
     start(){
-        let plank=new DrawPlank(this.ctx,{x:200,y:280},{w:50,h:10})
-        let ball=new DrawBall(this.ctx,{x:210,y:270},{w:10,h:10})
-        let target=new DrawTarget(this.ctx,{x:50,y:10},{w:300,h:40})
-        target.draw()
+        if(this.gameing){
+            return
+        }
+        this.gameing=true
+        let plank=new DrawPlank(this.ctx,{x:200,y:280},'./images/paddle.png');
+        let ball=new DrawBall(this.ctx,{x:210,y:270},'./images/ball.png');
+
+
+        ball.debugMode(this.scene);
+
         this.timer=setInterval(()=>{
+
+            this.clearScene();
+            if(this.blockArr.every(i=>i.every(k=>k.life<=0))){
+                this.gameover()
+                alert('YOU WIN')
+            }
+            this.blockArr.forEach(i=>{
+                i.forEach(k=>{
+
+                    if(k.life>0){
+                        let hit=k.hitCheck(ball)
+                        if(hit){
+                            k.life-=1;
+                            ball.hitBorder(hit)
+                        }
+                        k.draw()
+                    }
+
+                })
+            })
             if(this.movingLeft){
                 plank.moveLeft()
             }
             if(this.movingRight){
                 plank.moveRight()
             }
+            if(!ball.fly(this.ballFlying)){
+                this.gameover()
+            }
+
+            if(plank.hitCheck(ball)){
+                ball.hitBorder('bottom')
+            }
+
             plank.draw();
-
-
-
-
-            let res=target.hit(ball.position,ball.size,ball.stap)
-            if(res){
-                ball.hitBorder(res)
-            }
-            if(!ball.fly()){
-               alert('game over')
-               clearInterval(this.timer)
-            }
-
-            ball.draw()
-            let isHitPlank=plank.hitPlank(ball.position,ball.size)
-            if(isHitPlank){
-                ball.hitBorder(isHitPlank)
-            }
-
-
+            ball.draw();
 
         },1000/60)
     }
@@ -64,48 +116,83 @@ class Scene{
 }
 
 class Draw{
-    constructor(context,position,size,color='rgb(200,0,0)'){
-        context.fillStyle = color;
+    constructor(context,position,url){
         this.position=position;
-        this.size=size;
         this.context=context;
+        if(typeof url==='string'){
+            let img=new Image();
+            img.src=url;
+            this.img=new Promise((resolve)=>{
+                img.onload=()=>{
+                    this.size={
+                        w:img.width,
+                        h:img.height
+                    }
+                    resolve(img)
+                }
+            })
+        }else {
+            this.img=url;
+            this.size={
+                w:url.width,
+                h:url.height
+            }
+        }
+
+
 
 
     }
     draw(){
-
-        let {x,y}=this.position,{w,h}=this.size;
-        this.context.fillRect(x,y,w,h)
+        let {x,y}=this.position;
+        this.img.then((img)=>{
+            this.context.drawImage(img,x,y)
+        })
     }
-    clear(position,size){
-        //let {x,y}=this.position,{w,h}=this.size;
-        let x,y,w,h;
-        if(position){
-            x=position.x;
-            y=position.y;
-        }else{
-            x=this.position.x;
-            y=this.position.y;
+    hitCheck(o2,o1=this){
+        let {x:x2,y:y2}=o2.position,{w:w2,h:h2}=o2.size;
+        let {x:x1,y:y1}=o1.position,{w:w1,h:h1}=o1.size;
+        let o1center={
+            x:w1/2+x1,
+            y:h1/2+y1
+        };
+        let o2center={
+            x:w2/2+x2,
+            y:h2/2+y2
+        };
+
+        if(Math.abs(o1center.x-o2center.x)<=w1/2+w2/2){
+            if(Math.abs(o1center.y-o2center.y)<=h1/2+h2/2){
+
+                let crossX=x1+w1-x2>w1?x2+w2-x1:x1+w1-x2;
+                let crossY=y1+h1-y2>h1?y2+h2-y1:y1+h1-y2;
+                if(crossX>crossY){
+                    if(y2>y1){
+                        return 'top'
+                    }else{
+                        return 'bottom'
+                    }
+
+                }else{
+                    if(x2>x1){
+                        return 'right'
+                    }else{
+                        return 'left'
+                    }
+
+                }
+            }
         }
 
-        if(size){
-            w=size.w;
-            h=size.h;
-        }else{
-            w=this.size.w;
-            h=this.size.h;
-        }
-        this.context.clearRect(x, y, w, h)
     }
-
 }
 class DrawPlank extends Draw{
-    constructor(context,position,size){
-        super(context,position,size);
+    constructor(context,position,url){
+        super(context,position,url);
         this.stap=5;
     }
     moveLeft(){
-        this.clear();
+        //this.clear();
 
         this.position.x-=this.stap
         if(this.position.x<=0){
@@ -113,20 +200,11 @@ class DrawPlank extends Draw{
         }
     }
     moveRight(){
-        this.clear();
+        //this.clear();
         this.position.x+=this.stap;
         let w=this.context.canvas.clientWidth;
         if(this.position.x+this.size.w>=w){
             this.position.x=w-this.size.w
-        }
-    }
-    hitPlank(ballPosition,ballSize){
-        let w=ballSize.w,h=ballSize.h;
-        let x=ballPosition.x,y=ballPosition.y;
-
-        //debugger
-        if(y+h>=this.position.y&&x+w>=this.position.x&&x<=this.position.x+this.size.w){
-            return 'bottom'
         }
     }
 }
@@ -141,37 +219,48 @@ class DrawBall extends  Draw{
             y:0-this.calcY()
         };
 
-        //this.way={x:false,y:false}
 
+
+    }
+    debugMode(scene){
+        let mouseMoveHandle=(e)=>{
+            this.position={
+                x:e.offsetX,
+                y:e.offsetY
+            }
+        }
+        scene.addEventListener('mousedown',(e)=>{
+            let {x,y}=this.position,{w,h}=this.size
+            if(e.offsetX>=x&&e.offsetX<=x+w&&e.offsetY>=y&&e.offsetY<=y+h){
+                scene.addEventListener('mousemove',mouseMoveHandle)
+            }
+        })
+        scene.addEventListener('mouseup',()=>{
+            scene.removeEventListener('mousemove',mouseMoveHandle)
+        })
     }
     calcX(angle=this.angle,stap=this.moveStap){
         console.log(angle)
         let x;
         x=Math.round(stap*Math.sin((90-angle)*Math.PI/180))
-        //debugger
         return x
-        //debugger
+
     }
     calcY(angle=this.angle,stap=this.moveStap){
-        console.log(angle)
         let y;
         y=Math.round(stap*Math.cos((90-angle)*Math.PI/180))
-        //debugger
         return y
-        //debugger
     }
-    fly(pPosition,pSize){
+    fly(isFly){
+        if(!isFly){
+            return true
+        }
         let borderX=this.context.canvas.clientWidth,borderY=this.context.canvas.clientHeight;
-        this.clear();
-        // if(!this.decide(pPosition,pSize)){
-        //     alert('game over');
-        //     return false
-        // }
         let w=this.size.w,h=this.size.h;
         let x=this.position.x,y=this.position.y;
         if(y+h>=borderY){
-            //debugger
-            this.hitBorder('bottom')
+
+            alert('game over')
             return false
         }
         if(y<=0){
@@ -185,21 +274,12 @@ class DrawBall extends  Draw{
         }
         this.position.x+=this.stap.x;
         this.position.y+=this.stap.y
-        // if(this.way.x){
-        //     this.position.x+=this.stap
-        // }else{
-        //     this.position.x-=this.stap
-        // }
-        // if(this.way.y){
-        //     this.position.y+=this.stap
-        // }else{
-        //     this.position.y-=this.stap
-        // }
+
         return true
 
     }
     hitBorder(border){
-        //debugger
+
 
         switch (border){
             case 'left':
@@ -220,106 +300,21 @@ class DrawBall extends  Draw{
         }
 
     }
-    decide(pPosition,pSize){
-        let borderX=this.context.canvas.clientWidth,borderY=this.context.canvas.clientHeight;
-        let w=this.size.w,h=this.size.h;
-        let x=this.position.x,y=this.position.y;
-        if(y+h>=borderY){
-            return false
-        }
-        //debugger
-        if(y+h>=pPosition.y&&x>=pPosition.x&&x<=pPosition.x+pSize.w){
-            this.way.y=false
-        }
-        if(y<=0){
-            this.way.y=true
-        }
-        if(x+w>=borderX){
-            this.way.x=false
-        }
-        if(x<=0){
-            this.way.x=true
-        }
-        return true
-    }
+
 }
 
 class DrawTarget extends Draw{
-    constructor(context,position,size,color){
+    constructor(context,position,url,life=1){
 
-        super(context,position,size,color);
-        this.unitsSize=10;
-
-        const {w,h}=this.size,{x,y}=position
-        let col=w/this.unitsSize,colUnitNum=h/this.unitsSize
-        this.centerSpot={x:size.w/2+position.x,y:size.h/2+position.y}
-        let dataMap=[];
-        for(let i=0;i<col*colUnitNum;i++){
-            let rowNum=Math.floor(i/col),colNum=i%col
-
-            dataMap.push([x+colNum*this.unitsSize,y+rowNum*this.unitsSize])
-        }
-        this.dataMap=dataMap
+        super(context,position,url);
+        this.life=life;
 
     }
-    hit(ballPosition,ballSize,ballStap){
-       // debugger
-        let{x,y}=ballPosition,{w,h}=ballSize,{x:stapX,y:stapY}=ballStap
-
-        for(let i=0;i<this.dataMap.length;i++){
-
-            //击中右边
-            // if(x+stapX<=this.dataMap[i][0]+this.unitsSize&&y+h+stapY>=this.dataMap[i][1]&&y+stapY<=this.dataMap[i][1]+this.unitsSize){
-            //     this.clear({x:this.dataMap[i][0],y:this.dataMap[i][1]},{w:this.unitsSize,h:this.unitsSize});
-            //     this.dataMap.splice(i,1);
-            //     debugger
-            //     return 'right'
-            // }
-
-
-
-
-            if(y+h+stapY>=this.dataMap[i][1]&&y+stapY<=this.dataMap[i][1]+this.unitsSize&&x+w+stapX>=this.dataMap[i][0]&&x+stapX<=this.dataMap[i][0]+this.unitsSize){
-                debugger
-                console.log('-----------------')
-                console.log('top')
-                console.log(y>=this.dataMap[i][1]+this.unitsSize)
-                console.log('left')
-                console.log(x+w<=this.dataMap[i][0])
-                console.log('right')
-                console.log(x>=this.dataMap[i][0]+this.unitsSize)
-                console.log('-----------------')
-
-                if(y>=this.dataMap[i][1]+this.unitsSize){
-                    this.clear({x:this.dataMap[i][0],y:this.dataMap[i][1]},{w:this.unitsSize,h:this.unitsSize});
-                    this.dataMap.splice(i,1);
-                    return 'top'
-                }
-                if(x+w<=this.dataMap[i][0]){
-                    this.clear({x:this.dataMap[i][0],y:this.dataMap[i][1]},{w:this.unitsSize,h:this.unitsSize});
-                    this.dataMap.splice(i,1);
-                    return 'left'
-                }
-                if(x>=this.dataMap[i][0]+this.unitsSize){
-                    this.clear({x:this.dataMap[i][0],y:this.dataMap[i][1]},{w:this.unitsSize,h:this.unitsSize});
-                    this.dataMap.splice(i,1);
-                    debugger
-                    return 'right'
-                }
-                if(y+h<=this.dataMap[i][y]){
-                    this.clear({x:this.dataMap[i][0],y:this.dataMap[i][1]},{w:this.unitsSize,h:this.unitsSize});
-                    this.dataMap.splice(i,1);
-                    return 'bottom'
-                }
-
-
-            }
-
-
-
-
+    draw(){
+        let {x,y}=this.position;
+        if(this.life>0){
+            this.context.drawImage(this.img,x,y)
         }
-        return false
 
     }
 }
